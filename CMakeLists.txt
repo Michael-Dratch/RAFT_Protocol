@@ -3,4 +3,4 @@ project(RAFT_Protocol)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(RAFT_Protocol main.cpp RaftMessenger.cpp RaftMessenger.h)
+add_executable(RAFT_Protocol main.cpp RaftMessenger.cpp RaftMessenger.h Server.cpp Server.h RaftMessage.cpp RaftMessage.h)

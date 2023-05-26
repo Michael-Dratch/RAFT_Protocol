@@ -7,7 +7,14 @@
 
 
 class RaftMessenger {
+public:
+    void sendAppendEntries();
 
+    void sendAppendEntriesResponse();
+
+    void sendRequestVote();
+
+    void sendRequestVoteResponse();
 };
 
 
