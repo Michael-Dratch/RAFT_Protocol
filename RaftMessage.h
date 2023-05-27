@@ -17,10 +17,10 @@ class RaftMessage {
 
 
 private:
-    short type;
+    uint8_t type;
     bool success;
     int senderID;
-    int currentTerm;
+    //int currentTerm;
     int prevLogTerm;
     int lastLogTerm;
     int prevLogIndex;
@@ -36,9 +36,10 @@ private:
     }
 
 public:
+    int currentTerm;
     RaftMessage(){headerSize = getHeaderSize();}
 
-    RaftMessage(char type, bool success, int senderId, int currentTerm, int prevLogTerm, int lastLogTerm,
+    RaftMessage(uint8_t type, bool success, int senderId, int currentTerm, int prevLogTerm, int lastLogTerm,
                 int prevLogIndex, int lastLogIndex, int commitIndex, int entriesLength, const string &entries) :
                 type(type),
                 success(success),
@@ -53,9 +54,6 @@ public:
                 entries(entries) {
         headerSize = getHeaderSize();}
 
-    RaftMessage(char type, int commitIndex): type(type), commitIndex(commitIndex){
-        headerSize = getHeaderSize();
-    }
 
     vector<uint8_t> serialize(){
         vector<uint8_t> data;
@@ -69,8 +67,6 @@ public:
         uint8_t serLastLogIndex[4];
         uint8_t serCommitIndex[4];
         uint8_t serEntriesLength[4];
-        uint8_t serEntries[this->entries.length()];
-
 
         serializeInt(senderID, serSenderID);
         serializeInt(currentTerm, serCurrentTerm);
@@ -112,7 +108,6 @@ public:
 
     void appendString(vector<uint8_t> &data, string string) {
         for (int i = 0; i < string.size(); i++){
-            int size = data.size();
             data.push_back(string[i]);
         }
     }
@@ -147,7 +142,7 @@ public:
         return value;
     }
 
-    short getType() const {
+    uint8_t getType() const {
         return type;
     }
 
@@ -155,19 +150,19 @@ public:
         return success;
     }
 
-    short getSenderId() const {
+    int getSenderId() const {
         return senderID;
     }
 
-    short getCurrentTerm() const {
+    int getCurrentTerm() const {
         return currentTerm;
     }
 
-    short getPrevLogTerm() const {
+    int getPrevLogTerm() const {
         return prevLogTerm;
     }
 
-    short getLastLogTerm() const {
+    int getLastLogTerm() const {
         return lastLogTerm;
     }
 
