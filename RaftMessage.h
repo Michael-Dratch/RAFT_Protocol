@@ -9,6 +9,7 @@
 #include <array>
 #include <charconv>
 #include <vector>
+#include <iostream>
 
 using namespace std;
 
@@ -50,7 +51,6 @@ public:
                 commitIndex(commitIndex),
                 entriesLength(entriesLength),
                 entries(entries) {
-        printf("last log term constructor: %d", lastLogTerm);
         headerSize = getHeaderSize();}
 
     RaftMessage(char type, int commitIndex): type(type), commitIndex(commitIndex){
@@ -69,6 +69,7 @@ public:
         uint8_t serLastLogIndex[4];
         uint8_t serCommitIndex[4];
         uint8_t serEntriesLength[4];
+        uint8_t serEntries[this->entries.length()];
 
 
         serializeInt(senderID, serSenderID);
@@ -80,6 +81,7 @@ public:
         serializeInt(commitIndex, serCommitIndex);
         serializeInt(entriesLength, serEntriesLength);
 
+
         data.push_back(type);
         data.push_back(success);
         appendIntegerBytes(data, serSenderID);
@@ -90,7 +92,8 @@ public:
         appendIntegerBytes(data, serLastLogIndex);
         appendIntegerBytes(data, serCommitIndex);
         appendIntegerBytes(data, serEntriesLength);
-        printf("Finished serializing type: %d", data[0]);
+        appendString(data, entries.c_str());
+
         return data;
     }
 
@@ -107,6 +110,13 @@ public:
         data.push_back(value[3]);
     }
 
+    void appendString(vector<uint8_t> &data, string string) {
+        for (int i = 0; i < string.size(); i++){
+            int size = data.size();
+            data.push_back(string[i]);
+        }
+    }
+
     void deserialize(vector<uint8_t> data){
         type = data[0];
         success = data[1];
@@ -118,6 +128,15 @@ public:
         lastLogIndex = deserializeInt(&data[22]);
         commitIndex = deserializeInt(&data[26]);
         entriesLength = deserializeInt(&data[30]);
+        entries = deserializeString(&data[34], entriesLength);
+    }
+
+    string deserializeString(uint8_t * buffer, int stringLength) {
+        string result = "";
+        for (int i = 0; i < stringLength; i++){
+            result.push_back((char)buffer[i]);
+        }
+        return result;
     }
 
     int deserializeInt(uint8_t * buffer) {

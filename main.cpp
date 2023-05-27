@@ -6,7 +6,7 @@ using namespace std;
 int main() {
 
     RaftMessage msg(8, true, 1, 2, 3, 2111222333,
-            1, 2, 2111222333, 0, "");
+            1, 2, 2111222333, 11, "Hello\n\rTest");
     vector<uint8_t> data = msg.serialize();
     RaftMessage msg2;
     msg2.deserialize(data);
@@ -20,5 +20,6 @@ int main() {
     cout << msg2.getLastLogIndex() << std::endl;
     cout << msg2.getCommitIndex() << std::endl;
     cout << msg2.getEntriesLength() << std::endl;
+    cout << msg2.getEntries() << std::endl;
     return 0;
 }
