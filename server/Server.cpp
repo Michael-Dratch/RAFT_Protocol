@@ -2,7 +2,7 @@
 // Created by Owner on 5/26/2023.
 //
 
-#include "Server.h"
+
 /*
  * THE MOST BASIC SOCKET SERVER
  *
@@ -12,6 +12,7 @@
 
 #include <sys/socket.h>
 #include <cstdlib>
+#include <iostream>
 #include <arpa/inet.h>
 #include <cstdio>
 #include <cstring>
@@ -19,45 +20,41 @@
 #include <sys/un.h>
 #include "Server.h"
 
-#define BUFF_SZ 512
-
-#define PORT_NUM    1090
-
-
-
+using namespace std;
 
 void Server::process_requests(int listen_socket){
         int data_socket;
         int ret;
 
         //again, not the best approach, need ctrl-c to exit
-        while(1){
-            //Do some cleaning
-            memset(send_buffer,0,sizeof(send_buffer));
-            memset(recv_buffer,0,sizeof(recv_buffer));
 
-            //Establish a connection
-            data_socket = accept(listen_socket, NULL, NULL);
-            if (data_socket == -1) {
-                perror("accept");
-                exit(EXIT_FAILURE);
-            }
+        //Do some cleaning
+        memset(send_buffer,0,sizeof(send_buffer));
+        memset(recv_buffer,0,sizeof(recv_buffer));
 
-            printf("\t RECEIVED REQ...\n");
-
-            /* Wait for next data packet. */
-            ret = recv(data_socket, recv_buffer, sizeof(recv_buffer),0);
-            if (ret == -1) {
-                perror("read error");
-                exit(EXIT_FAILURE);
-            }
-
-            int buff_len = sprintf((char *)send_buffer, "THANK YOU -> %s", recv_buffer);
-
-            //now string out buffer has the length
-            send (data_socket, send_buffer, buff_len, 0);
-            close(data_socket);
+        //Establish a connection
+        data_socket = accept(listen_socket, NULL, NULL);
+        if (data_socket == -1) {
+            perror("accept");
+            exit(EXIT_FAILURE);
         }
+
+        printf("\t RECEIVED REQ...\n");
+
+        /* Wait for next data packet. */
+        ret = recv(data_socket, recv_buffer, sizeof(recv_buffer),0);
+        if (ret == -1) {
+            perror("read error");
+            exit(EXIT_FAILURE);
+        }
+
+        int buff_len = sprintf((char *)send_buffer, "THANK YOU -> %s", recv_buffer);
+
+        //now string out buffer has the length
+        send (data_socket, send_buffer, buff_len, 0);
+        close(data_socket);
+        cout << "Sent Back Message" << endl;
+
     }
 
 /*

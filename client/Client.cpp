@@ -3,9 +3,10 @@
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <unistd.h>
 #include <sys/un.h>
 
@@ -58,7 +59,7 @@ void Client::start_client(uint8_t *packet){
         exit(EXIT_FAILURE);
     }
 
-    ret = send(data_socket, packet, strlen(packet), 0);
+    ret = send(data_socket, packet, strlen((const char *)packet), 0);
     if (ret == -1) {
         perror("header write error");
         exit(EXIT_FAILURE);
