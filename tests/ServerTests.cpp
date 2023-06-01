@@ -60,5 +60,4 @@ TEST(ServerTest, ServerTestStart){
 
     waitForAllProcesses(pids);
     cout << "Server test finished" << endl;
-    return 0;
 }

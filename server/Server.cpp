@@ -75,6 +75,13 @@ void Server::start_server(){
             exit(EXIT_FAILURE);
         }
 
+        int reuse = 1;
+        if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
+            std::cerr << "Failed to set the SO_REUSEADDR option." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+
         /* Bind socket to socket name. */
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
