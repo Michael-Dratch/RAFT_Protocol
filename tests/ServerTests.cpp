@@ -18,15 +18,13 @@ void runServer();
 void runClient();
 
 
-void runClient(vector<sockaddr_in> serverAddrs, vector<RaftMessage> messages) {
-    cout << "starting client" << endl;
+void runClient(vector<sockaddr_in> serverAddrs, vector<RaftMessage> &messages) {
     Client c;
     c.start_client(serverAddrs, messages);
     exit(0);
 }
 
 void runServer() {
-    cout << "starting server" << endl;
     Server s;
     s.start_server();
     exit(0);
@@ -45,9 +43,10 @@ pid_t startServer(){
     return serverPID;
 }
 
-pid_t startClient(vector<sockaddr_in> serverAddrs, vector<RaftMessage> messages){
+pid_t startClient(vector<sockaddr_in> serverAddrs, vector<struct RaftMessage> &messages){
     pid_t clientPID = fork();
-    if (clientPID == 0) { runClient(serverAddrs, messages); }
+    if (clientPID == 0) {
+        runClient(serverAddrs, messages); }
     return clientPID;
 }
 
@@ -64,23 +63,23 @@ struct sockaddr_in createSocketAddress(unsigned short port){
     return addr;
 }
 
-RaftMessage getBasicRaftMessage(){
-    return RaftMessage(1, true, 1, 1, 1, 1, 1, 1, 1, 3, "A\n\r");
+struct RaftMessage getBasicRaftMessage(){
+    return createRaftMessage(1, true, 1, 1, 1, 1, 1, 1, 1, 3, "A\n\r");
 }
 
-void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
-    EXPECT_TRUE(msg1.getType() == msg2.getType());
-    EXPECT_TRUE(msg1.isSuccess() == msg2.isSuccess());
-    EXPECT_TRUE(msg1.getSenderId() == msg2.getSenderId());
-    EXPECT_TRUE(msg1.getCurrentTerm() == msg2.getCurrentTerm());
-    EXPECT_TRUE(msg1.getPrevLogTerm() == msg2.getPrevLogTerm());
-    EXPECT_TRUE(msg1.getLastLogTerm() == msg2.getLastLogTerm());
-    EXPECT_TRUE(msg1.getPrevLogIndex() == msg2.getPrevLogIndex());
-    EXPECT_TRUE(msg1.getLastLogIndex() == msg2.getLastLogIndex());
-    EXPECT_TRUE(msg1.getCommitIndex() == msg2.getCommitIndex());
-    EXPECT_TRUE(msg1.getEntriesLength() == msg2.getEntriesLength());
-    EXPECT_TRUE(msg1.getEntries() == msg2.getEntries());
-}
+//void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
+//    EXPECT_TRUE(msg1.getType() == msg2.getType());
+//    EXPECT_TRUE(msg1.isSuccess() == msg2.isSuccess());
+//    EXPECT_TRUE(msg1.getSenderId() == msg2.getSenderId());
+//    EXPECT_TRUE(msg1.getCurrentTerm() == msg2.getCurrentTerm());
+//    EXPECT_TRUE(msg1.getPrevLogTerm() == msg2.getPrevLogTerm());
+//    EXPECT_TRUE(msg1.getLastLogTerm() == msg2.getLastLogTerm());
+//    EXPECT_TRUE(msg1.getPrevLogIndex() == msg2.getPrevLogIndex());
+//    EXPECT_TRUE(msg1.getLastLogIndex() == msg2.getLastLogIndex());
+//    EXPECT_TRUE(msg1.getCommitIndex() == msg2.getCommitIndex());
+//    EXPECT_TRUE(msg1.getEntriesLength() == msg2.getEntriesLength());
+//    EXPECT_TRUE(msg1.getEntries() == msg2.getEntries());
+//}
 
 
 
@@ -101,14 +100,14 @@ TEST(ServerTest, ClientSendsRaftMessageToServer){
     vector<pid_t> pids;
     pid_t serverPID = startServer();
     pids.push_back(serverPID);
-
+    cout << "TEST: SERVER STARTED" << endl;
     sleep(0.5);
 
     vector<sockaddr_in> serverAddrs;
     serverAddrs.push_back(createSocketAddress(1090));
-    vector<RaftMessage> messages;
+    vector<struct RaftMessage> messages;
     messages.push_back(getBasicRaftMessage());
-
+    cout << "TEST: STARTING CLIENT" << endl;
     pid_t clientPID = startClient(serverAddrs, messages);
     pids.push_back(clientPID);
 

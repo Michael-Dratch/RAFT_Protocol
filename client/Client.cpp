@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include "../RaftMessage.h"
+#include "../Serialization.h"
 
 
 using namespace std;
@@ -48,26 +49,34 @@ void Client::start_client(uint8_t *packet){
     close(data_socket);
 }
 
-void Client::start_client(vector<sockaddr_in> serverAddrs, vector<RaftMessage> messages){
+void Client::start_client(vector<sockaddr_in> serverAddrs, vector<struct RaftMessage> &messages){
     serverAddresses = serverAddrs;
-    messageQueue = messages;
-    int data_socket, ret;
+    int data_socket;
 
     data_socket = createSocket(data_socket);
+    connectToServer(serverAddrs[0], data_socket);
 
-    for (int msgIndex = 0; msgIndex < messageQueue.size(); msgIndex++){
-        RaftMessage msg = messageQueue[msgIndex];
-        vector<uint8_t> packet = msg.serialize();
-        connectToServer(serverAddrs[0], data_socket);
-        sendMessage(data_socket, packet);
-    }
+    RaftMessage msg = messages[0];
+    cout << "MEssage before sending: " << raftMessageToString(msg) << endl;
+    uint8_t packet[37];
+    serializeMessage(msg, packet);
+    int entriesSize = sizeof msg.entries;
+    uint8_t entriesPacket[entriesSize];
+    serializeEntries(msg, entriesPacket);
+    sendMessage(data_socket, packet, 37);
+    sendMessage(data_socket, entriesPacket, entriesSize);
     close(data_socket);
 }
 
-void Client::sendMessage(int data_socket, vector<uint8_t> &packet) {
+
+void Client::sendMessage(int data_socket, uint8_t *packet, int packetSize) {
     int ret;
-    ret = send(data_socket, &packet, packet.size(), 0);
-    checkError(ret, "header write error");
+    cout << "size of packet: "<< packetSize <<endl;
+    ret = send(data_socket, packet, packetSize, 0);
+    cout << "ret: " << ret << endl;
+    if (ret == -1){
+        std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;
+    }
 }
 
 

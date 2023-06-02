@@ -41,4 +41,6 @@ private:
     void clearBuffers();
 
     int acceptConnection(int listen_socket, int data_socket);
+
+    int deserializeInt(uint8_t*bufferPtr);
 };

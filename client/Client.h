@@ -19,14 +19,14 @@
 class Client {
 public:
     void start_client(uint8_t *packet_buff);
-    void start_client(vector<sockaddr_in> serverAddresses, vector<RaftMessage> messageQueue);
+    void start_client(vector<sockaddr_in> serverAddresses, vector<RaftMessage> &messageQueue);
     void connectToServer(unsigned short port, int data_socket);
 
 private:
     uint8_t send_buffer[BUFF_SZ] = {0};
     uint8_t recv_buffer[BUFF_SZ] = {0};
     vector<sockaddr_in> serverAddresses;
-    vector<RaftMessage> messageQueue;
+    vector<struct RaftMessage> messageQueue;
 
     void checkError(int data_socket, std::string message);
 
@@ -36,7 +36,7 @@ private:
 
     void connectToServer(sockaddr_in addr, int data_socket);
 
-    void sendMessage(int data_socket, vector<uint8_t> &packet);
+    void sendMessage(int data_socket, uint8_t*packet, int packetSize);
 };
 
 

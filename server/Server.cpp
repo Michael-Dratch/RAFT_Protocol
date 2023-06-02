@@ -11,38 +11,64 @@
 #include <cstdio>
 #include <unistd.h>
 #include <sys/un.h>
+#include <cstdint>
 #include "Server.h"
+#include "../Serialization.h"
 #include "../RaftMessage.h"
 
 using namespace std;
 
-void Server::process_requests(int listen_socket){
-    int data_socket, ret;
+void Server::process_requests(int listen_socket) {
+    int data_socket, bytesRead;
     clearBuffers();
     data_socket = acceptConnection(listen_socket, data_socket);
 
-    ret = recv(data_socket, recv_buffer, RaftMessage::getHeaderSize(), 0);
-    checkError(ret, "read error");
-
-    int entriesLength = RaftMessage::deserializeInt(&recv_buffer[RaftMessage::getEntriesLengthOffset()]);
-
-    ret = recv(data_socket, recv_buffer, entriesLength, 0);
-
-    vector<uint8_t> msgData;
-    for (int i = 0; i < RaftMessage::getHeaderSize() + entriesLength; i++){
-        msgData.push_back(recv_buffer[i]);
-    }
-
-    RaftMessage message;
-    message.deserialize(msgData);
-    cout << message.toString() << endl;
+    bytesRead = recv(data_socket, recv_buffer, 37, 0);
+    checkError(bytesRead, "read error");
+    RaftMessage msg = deserializeMessage(recv_buffer);
+    bytesRead = recv(data_socket, recv_buffer, msg.entriesLength, 0);
+    char* entries = (char*)&recv_buffer[37];
+    cout << entries << endl;
+    msg.entries = entries;
+    cout << msg.entries << endl;
+    cout << "Server: Message: " << raftMessageToString(msg) << endl;
     close(data_socket);
-    }
+}
+
+//int Server::deserializeInt(uint8_t*bufferPtr) {
+//    uint8_t intData[4];
+//    for (int i = 0; i < 4; i++) {
+//        intData[i] = bufferPtr[i];
+//    }
+//    return (int) *intData;
+//}
+
+
+//
+//    struct RaftMessage msg;
+//    vector<uint8_t> data;
+//    while ( bytesRead = recv(data_socket, recv_buffer, 4, 0) != 0) {
+//        checkError(bytesRead, "read error");
+//        for (int i = 0; i < bytesRead; i++){
+//            data.push_back(recv_buffer[i]);
+//        }
+//        int* typePtr = (int*)(&data[0]);
+//        int type = *typePtr;
+//        cout << "TYPE: " << type << endl;
+//    }
+//    int entriesLength = recv_buffer[getEntriesLengthOffset(msg)];
+//    cout << "Entires length: " << entriesLength << endl;
+//    bytesRead = recv(data_socket, &recv_buffer[getHeaderSize(msg)], entriesLength, 0);
+//    checkError(bytesRead, "read error");
+//    deserializeRaftMessage(msg, recv_buffer);
+//    cout << "RECEIVED MESSAGE" << endl;
+//    cout << raftMessageToString(msg) << endl;
+//  close(data_socket);
+//    }
 
 int Server::acceptConnection(int listen_socket, int data_socket) {
     data_socket = accept(listen_socket, NULL, NULL);
     checkError(data_socket, "accept");
-    printf("\t RECEIVED REQUEST\n");
     return data_socket;
 }
 
@@ -53,6 +79,7 @@ void Server::clearBuffers() {
 
 
 void Server::start_server(){
+    cout << "SERVER: STARTED" << endl;
     int listen_socket, ret;
     struct sockaddr_in addr;
 
