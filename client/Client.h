@@ -27,7 +27,7 @@ private:
 
     void checkError(int data_socket, std::string message);
 
-    int createSocket(int data_socket);
+    int createSocket();
 
     void connectToServer(sockaddr_in addr, int data_socket);
 

@@ -21,7 +21,7 @@ void Client::start_client(vector<sockaddr_in> serverAddrs, vector<RaftMessage> m
     int data_socket;
 
     for (int i = 0; i < messages.size(); i++){
-        data_socket = createSocket(data_socket);
+        data_socket = createSocket();
         connectToServer(serverAddrs[0], data_socket);
         RaftMessage msg = messages[i];
         sendRaftMessage(data_socket, msg);
@@ -46,8 +46,8 @@ void Client::sendPacket(int data_socket, uint8_t *packet, int packetSize) {
     if (ret == -1){std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;}
 }
 
-int Client::createSocket(int data_socket) {
-    data_socket = socket(AF_INET, SOCK_STREAM, 0);
+int Client::createSocket() {
+    int data_socket = socket(AF_INET, SOCK_STREAM, 0);
     checkError(data_socket, "creating socket");
     return data_socket;
 }
