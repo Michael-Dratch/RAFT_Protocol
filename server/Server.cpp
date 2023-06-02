@@ -20,6 +20,22 @@
 using namespace std;
 
 
+void Server::start_server(){
+    cout << "SERVER: STARTED" << endl;
+    int listen_socket, ret;
+    struct sockaddr_in addr;
+
+    listen_socket = socket(AF_INET, SOCK_STREAM, 0);
+    checkError(listen_socket, "socket");
+    setSocketReuseOption(listen_socket, ret);
+    bindSocket(listen_socket, ret, addr);
+    ret = listen(listen_socket, 20);
+    checkError(ret, "listen");
+
+    process_requests(listen_socket);
+    close(listen_socket);
+}
+
 void Server::process_requests(int listen_socket) {
     int data_socket, bytesRead;
     while(1){
@@ -49,6 +65,7 @@ RaftMessage &Server::receiveEntries(int data_socket, int bytesRead, RaftMessage 
     return msg;
 }
 
+
 RaftMessage Server::receiveMessageHeader(int data_socket, int bytesRead) {
     bytesRead = recv(data_socket, recv_buffer, 37, 0);
     checkError(bytesRead, "read error");
@@ -56,33 +73,16 @@ RaftMessage Server::receiveMessageHeader(int data_socket, int bytesRead) {
     return msg;
 }
 
-
 int Server::acceptConnection(int listen_socket, int data_socket) {
     data_socket = accept(listen_socket, NULL, NULL);
     checkError(data_socket, "accept");
     return data_socket;
 }
 
+
 void Server::clearBuffers() {
     memset(send_buffer, 0, sizeof(send_buffer));
     memset(recv_buffer, 0, sizeof(recv_buffer));
-}
-
-
-void Server::start_server(){
-    cout << "SERVER: STARTED" << endl;
-    int listen_socket, ret;
-    struct sockaddr_in addr;
-
-    listen_socket = socket(AF_INET, SOCK_STREAM, 0);
-    checkError(listen_socket, "socket");
-    setSocketReuseOption(listen_socket, ret);
-    bindSocket(listen_socket, ret, addr);
-    ret = listen(listen_socket, 20);
-    checkError(ret, "listen");
-
-    process_requests(listen_socket);
-    close(listen_socket);
 }
 
 void Server::bindSocket(int listen_socket, int ret, sockaddr_in &addr) {

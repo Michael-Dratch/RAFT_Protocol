@@ -11,15 +11,12 @@
 #include "../RaftMessage.h"
 
 #define PORT_NUM    1090
-#define EOF_CHAR_STR "\x05"   //CTRL+D is EOF in general ASCII 5
-
 #define BUFF_SZ 512
-
 #define SHUTDOWN_MSG_TYPE 255
 
 class Client {
 public:
-    void start_client(vector<sockaddr_in> serverAddresses, vector<RaftMessage> &messageQueue);
+    void start_client(vector<sockaddr_in> serverAddresses, vector<RaftMessage> messageQueue);
     void connectToServer(unsigned short port, int data_socket);
 
 private:
@@ -32,11 +29,11 @@ private:
 
     int createSocket(int data_socket);
 
-    void clearMemory(sockaddr_in &addr);
-
     void connectToServer(sockaddr_in addr, int data_socket);
 
-    void sendMessage(int data_socket, uint8_t*packet, int packetSize);
+    void sendPacket(int data_socket, uint8_t*packet, int packetSize);
+
+    void sendRaftMessage(int data_socket, RaftMessage &msg);
 };
 
 
