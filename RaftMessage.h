@@ -20,7 +20,7 @@ private:
     uint8_t type;
     bool success;
     int senderID;
-    //int currentTerm;
+    int currentTerm;
     int prevLogTerm;
     int lastLogTerm;
     int prevLogIndex;
@@ -30,13 +30,8 @@ private:
     string entries;
     int headerSize;
 
-    int getHeaderSize(){
-        return sizeof type + sizeof success + sizeof senderID + sizeof currentTerm + sizeof prevLogTerm
-        + sizeof lastLogTerm + sizeof prevLogIndex + sizeof lastLogIndex + sizeof commitIndex + sizeof entriesLength;
-    }
-
 public:
-    int currentTerm;
+
     RaftMessage(){headerSize = getHeaderSize();}
 
     RaftMessage(uint8_t type, bool success, int senderId, int currentTerm, int prevLogTerm, int lastLogTerm,
@@ -53,7 +48,6 @@ public:
                 entriesLength(entriesLength),
                 entries(entries) {
         headerSize = getHeaderSize();}
-
 
     vector<uint8_t> serialize(){
         vector<uint8_t> data;
@@ -93,7 +87,18 @@ public:
         return data;
     }
 
-    void serializeInt(int value, uint8_t * buffer) {
+
+    static int getHeaderSize(){
+        return sizeof type + sizeof success + sizeof senderID + sizeof currentTerm + sizeof prevLogTerm
+               + sizeof lastLogTerm + sizeof prevLogIndex + sizeof lastLogIndex + sizeof commitIndex + sizeof entriesLength;
+    }
+
+    static int getEntriesLengthOffset(){
+        return sizeof type + sizeof success + sizeof senderID + sizeof currentTerm + sizeof prevLogTerm
+               + sizeof lastLogTerm + sizeof prevLogIndex + sizeof lastLogIndex + sizeof commitIndex;
+    }
+
+    static void serializeInt(int value, uint8_t * buffer) {
         for (int i = 0; i < sizeof(int); ++i) {
             buffer[i] = (char)((value >> (i * 8)) & 0xFF);
         }
@@ -126,7 +131,9 @@ public:
         entries = deserializeString(&data[34], entriesLength);
     }
 
-    string deserializeString(uint8_t * buffer, int stringLength) {
+
+
+    static string deserializeString(uint8_t * buffer, int stringLength) {
         string result = "";
         for (int i = 0; i < stringLength; i++){
             result.push_back((char)buffer[i]);
@@ -134,7 +141,7 @@ public:
         return result;
     }
 
-    int deserializeInt(uint8_t * buffer) {
+    static int deserializeInt(uint8_t * buffer) {
         int value = 0;
         for (int i = 0; i < sizeof(int); ++i) {
             value |= (static_cast<int>(buffer[i]) << (i * 8));
@@ -185,6 +192,24 @@ public:
     const string &getEntries() const {
         return entries;
     }
+
+    string toString(){
+        string result = "";
+        result += "\nType: " + to_string(type);
+        result += "\nSuccess: " +  to_string(success);
+        result += "\nsenderID: " + to_string(senderID);
+        result += "\ncurrentTerm: " + to_string(currentTerm);
+        result += "\nprevLogTerm: " + to_string(prevLogTerm);
+        result += "\nlastLogTerm: " + to_string(lastLogTerm);
+        result += "\nprevLogIndex: " + to_string(prevLogIndex);
+        result += "\nlastLogIndex: " + to_string(lastLogIndex);
+        result += "\ncommitIndex: " + to_string(commitIndex);
+        result += "\nentriesLength: " + to_string(entriesLength);
+        result += "\nentries: " + entries;
+        return result;
+    }
+
+
 };
 
 #endif //RAFT_PROTOCOL_RAFTMESSAGE_H

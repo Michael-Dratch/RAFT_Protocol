@@ -3,114 +3,92 @@
 //
 
 
-/*
- * THE MOST BASIC SOCKET SERVER
- *
- */
-
-#include <cstdint>
-
 #include <sys/socket.h>
+#include <string>
 #include <cstdlib>
 #include <iostream>
 #include <arpa/inet.h>
 #include <cstdio>
-#include <cstring>
 #include <unistd.h>
 #include <sys/un.h>
 #include "Server.h"
+#include "../RaftMessage.h"
 
 using namespace std;
 
 void Server::process_requests(int listen_socket){
-        int data_socket;
-        int ret;
+    int data_socket, ret;
+    clearBuffers();
+    data_socket = acceptConnection(listen_socket, data_socket);
 
-        //again, not the best approach, need ctrl-c to exit
+    ret = recv(data_socket, recv_buffer, RaftMessage::getHeaderSize(), 0);
+    checkError(ret, "read error");
 
-        //Do some cleaning
-        memset(send_buffer,0,sizeof(send_buffer));
-        memset(recv_buffer,0,sizeof(recv_buffer));
+    int entriesLength = RaftMessage::deserializeInt(&recv_buffer[RaftMessage::getEntriesLengthOffset()]);
 
-        //Establish a connection
-        data_socket = accept(listen_socket, NULL, NULL);
-        if (data_socket == -1) {
-            perror("accept");
-            exit(EXIT_FAILURE);
-        }
+    ret = recv(data_socket, recv_buffer, entriesLength, 0);
 
-        printf("\t RECEIVED REQ...\n");
-
-        /* Wait for next data packet. */
-        ret = recv(data_socket, recv_buffer, sizeof(recv_buffer),0);
-        if (ret == -1) {
-            perror("read error");
-            exit(EXIT_FAILURE);
-        }
-
-        int buff_len = sprintf((char *)send_buffer, "THANK YOU -> %s", recv_buffer);
-
-        //now string out buffer has the length
-        send (data_socket, send_buffer, buff_len, 0);
-        close(data_socket);
-        cout << "Sent Back Message" << endl;
-
+    vector<uint8_t> msgData;
+    for (int i = 0; i < RaftMessage::getHeaderSize() + entriesLength; i++){
+        msgData.push_back(recv_buffer[i]);
     }
 
-/*
- *  This function starts the server, basically creating the socket
- *  it will listen on INADDR_ANY which is basically all local
- *  interfaces, eg., 0.0.0.0
- */
+    RaftMessage message;
+    message.deserialize(msgData);
+    cout << message.toString() << endl;
+    close(data_socket);
+    }
+
+int Server::acceptConnection(int listen_socket, int data_socket) {
+    data_socket = accept(listen_socket, NULL, NULL);
+    checkError(data_socket, "accept");
+    printf("\t RECEIVED REQUEST\n");
+    return data_socket;
+}
+
+void Server::clearBuffers() {
+    memset(send_buffer, 0, sizeof(send_buffer));
+    memset(recv_buffer, 0, sizeof(recv_buffer));
+}
+
+
 void Server::start_server(){
-        int listen_socket;
-        int ret;
+    int listen_socket, ret;
+    struct sockaddr_in addr;
 
-        struct sockaddr_in addr;
+    listen_socket = socket(AF_INET, SOCK_STREAM, 0);
+    checkError(listen_socket, "socket");
+    setSocketReuseOption(listen_socket, ret);
+    bindSocket(listen_socket, ret, addr);
+    ret = listen(listen_socket, 20);
+    checkError(ret, "listen");
 
-        /* Create local socket. */
-        listen_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (listen_socket == -1) {
-            perror("socket");
-            exit(EXIT_FAILURE);
-        }
+    process_requests(listen_socket);
+    close(listen_socket);
+}
 
-        int reuse = 1;
-        if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-            std::cerr << "Failed to set the SO_REUSEADDR option." << std::endl;
-            exit(EXIT_FAILURE);
-        }
+void Server::bindSocket(int listen_socket, int ret, sockaddr_in &addr) {
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(PORT_NUM);
 
+    ret = bind(listen_socket, (const struct sockaddr *) &addr,
+               sizeof(struct sockaddr_in));
+    checkError(ret, "accept");
+}
 
-        /* Bind socket to socket name. */
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(PORT_NUM);
+void Server::setSocketReuseOption(int listen_socket, int ret) {
+    int reuse = 1;
+    ret = setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    checkError(ret, "SO_REUSEADDR option");
+}
 
-        ret = bind(listen_socket, (const struct sockaddr *) &addr,
-                   sizeof(struct sockaddr_in));
-        if (ret == -1) {
-            perror("accept");
-            exit(EXIT_FAILURE);
-        }
-
-        /*
-         * Prepare for accepting connections. The backlog size is set
-         * to 20. So while one request is being processed other requests
-         * can be waiting.
-         */
-        ret = listen(listen_socket, 20);
-        if (ret == -1) {
-            perror("listen");
-            exit(EXIT_FAILURE);
-        }
-
-        //Now process requests, this will never return so its bad coding
-        //but ok for purposes of demo
-        process_requests(listen_socket);
-
-        close(listen_socket);
+void Server::checkError(int ret, string message) {
+    if (ret == -1) {
+        cout << "ERROR: " << message << endl;
+        exit(EXIT_FAILURE);
     }
+}
 
 
 
