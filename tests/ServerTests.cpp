@@ -10,6 +10,8 @@
 #include <string>
 #include "../server/Server.h"
 #include "../client/Client.h"
+
+#define SHUTDOWN_MSG_TYPE 255
 using namespace std;
 
 
@@ -67,6 +69,10 @@ struct RaftMessage getBasicRaftMessage(){
     return createRaftMessage(1, true, 1, 1, 1, 1, 1, 1, 1, 3, "A\n\r");
 }
 
+struct RaftMessage getShutDownMessage(){
+    return createRaftMessage(SHUTDOWN_MSG_TYPE, true, 1, 1, 1, 1, 1, 1, 1, 3, "A\n\r");
+}
+
 //void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
 //    EXPECT_TRUE(msg1.getType() == msg2.getType());
 //    EXPECT_TRUE(msg1.isSuccess() == msg2.isSuccess());
@@ -107,6 +113,7 @@ TEST(ServerTest, ClientSendsRaftMessageToServer){
     serverAddrs.push_back(createSocketAddress(1090));
     vector<struct RaftMessage> messages;
     messages.push_back(getBasicRaftMessage());
+    messages.push_back(getShutDownMessage());
     cout << "TEST: STARTING CLIENT" << endl;
     pid_t clientPID = startClient(serverAddrs, messages);
     pids.push_back(clientPID);

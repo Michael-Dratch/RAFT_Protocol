@@ -12,5 +12,6 @@ int deserializeInt(uint8_t*bufferPtr);
 int deserializeBool(uint8_t*bufferPtr);
 void serializeMessage(RaftMessage msg, uint8_t *packet);
 void serializeEntries(RaftMessage msg, uint8_t *packet);
+string deserializeEntries(uint8_t* data, int entriesLength);
 RaftMessage deserializeMessage(uint8_t* data);
 #endif //RAFT_PROTOCOL_SERIALIZATION_H

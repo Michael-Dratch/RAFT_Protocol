@@ -45,8 +45,17 @@ void serializeMessage(RaftMessage msg, uint8_t *packet){
 }
 
 void serializeEntries(RaftMessage msg, uint8_t *packet){
-    const char* entries = msg.entries.c_str();
-    memcpy(packet, &entries, sizeof(msg.entries));
+    for (int i = 0; i < msg.entries.size(); i++){
+        packet[i] = (uint8_t)msg.entries[i];
+    }
+}
+
+string deserializeEntries(uint8_t* data, int entriesLength){
+    string result = "";
+    for (int i = 0; i < entriesLength; i++){
+        result.push_back((char)data[i]);
+    }
+    return result;
 }
 
 

@@ -19,7 +19,7 @@
 #define BUFF_SZ 512
 
 #define PORT_NUM    1090
-
+#define SHUTDOWN_MSG_TYPE 255
 class Server{
 
 public:
@@ -42,5 +42,10 @@ private:
 
     int acceptConnection(int listen_socket, int data_socket);
 
-    int deserializeInt(uint8_t*bufferPtr);
+
+    RaftMessage receiveMessageHeader(int data_socket, int bytesRead);
+
+    RaftMessage &receiveEntries(int data_socket, int bytesRead, RaftMessage &msg);
+
+    RaftMessage receiveRaftMessage(int data_socket, int bytesRead);
 };

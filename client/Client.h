@@ -15,10 +15,10 @@
 
 #define BUFF_SZ 512
 
+#define SHUTDOWN_MSG_TYPE 255
 
 class Client {
 public:
-    void start_client(uint8_t *packet_buff);
     void start_client(vector<sockaddr_in> serverAddresses, vector<RaftMessage> &messageQueue);
     void connectToServer(unsigned short port, int data_socket);
 

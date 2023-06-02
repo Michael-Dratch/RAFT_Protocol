@@ -28,41 +28,25 @@ using namespace std;
  *  over the null terminator for the string
  */
 
-void Client::start_client(uint8_t *packet){
-    struct sockaddr_in addr;
-    int data_socket, ret;
 
-    data_socket = createSocket(data_socket);
-    clearMemory(addr);
-
-    connectToServer(PORT_NUM, data_socket);
-
-    ret = send(data_socket, packet, strlen((const char *)packet), 0);
-    checkError(ret, "header write error");
-
-    //NOW READ RESPONSES BACK - 2 READS, HEADER AND DATA
-    ret = recv(data_socket, recv_buffer, sizeof(recv_buffer),0);
-    checkError(ret, "read error");
-
-    printf("RECV FROM SERVER -> %s\n",recv_buffer);
-
-    close(data_socket);
-}
 
 void Client::start_client(vector<sockaddr_in> serverAddrs, vector<struct RaftMessage> &messages){
     serverAddresses = serverAddrs;
     int data_socket;
 
-    data_socket = createSocket(data_socket);
-    connectToServer(serverAddrs[0], data_socket);
 
+    for (int i = 0 < messages.; i++){
+        data_socket = createSocket(data_socket);
+        connectToServer(serverAddrs[0], data_socket);
+
+    }
     RaftMessage msg = messages[0];
-    cout << "MEssage before sending: " << raftMessageToString(msg) << endl;
     uint8_t packet[37];
     serializeMessage(msg, packet);
-    int entriesSize = sizeof msg.entries;
+    int entriesSize = msg.entries.size();
     uint8_t entriesPacket[entriesSize];
     serializeEntries(msg, entriesPacket);
+    cout << "client first char: " << (char)entriesPacket[0] << endl;
     sendMessage(data_socket, packet, 37);
     sendMessage(data_socket, entriesPacket, entriesSize);
     close(data_socket);
@@ -71,12 +55,8 @@ void Client::start_client(vector<sockaddr_in> serverAddrs, vector<struct RaftMes
 
 void Client::sendMessage(int data_socket, uint8_t *packet, int packetSize) {
     int ret;
-    cout << "size of packet: "<< packetSize <<endl;
     ret = send(data_socket, packet, packetSize, 0);
-    cout << "ret: " << ret << endl;
-    if (ret == -1){
-        std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;
-    }
+    if (ret == -1){std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;}
 }
 
 
