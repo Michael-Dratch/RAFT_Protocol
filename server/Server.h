@@ -19,6 +19,7 @@
 #define BUFF_SZ 512
 
 #define SHUTDOWN_MSG_TYPE 255
+#define TEST_MSG_TYPE 254
 #define APPEND_ENTRIES_TYPE 1
 #define APPEND_ENTRIES_RES_TYPE 2
 #define REQUEST_VOTE_TYPE 4
@@ -39,6 +40,16 @@ private:
     vector<sockaddr_in> serverAddresses;
 
     int serverID;
+
+    int currentTerm;
+
+    sockaddr_in votedFor;
+
+    vector<string> log;
+
+    int commitIndex;
+
+    int lastApplied;
 
     void checkError(int ret, std::string message);
 
@@ -61,7 +72,7 @@ private:
 
     void handleAppendEntries(RaftMessage message);
 
-    void sendAppendEntriesResponse(RaftMessage message);
+    void sendAppendEntriesResponse(RaftMessage message, bool success);
 
     int createSocket();
 
@@ -74,4 +85,10 @@ private:
     void sendRaftMessage(int socket, RaftMessage message);
 
     void sendPacket(int socket, uint8_t packet[37], int i);
+
+    void updateCurrentTerm(int term);
+
+    bool doesAppendEntriesFail(RaftMessage message);
+
+    void handleTestMessage(RaftMessage message);
 };

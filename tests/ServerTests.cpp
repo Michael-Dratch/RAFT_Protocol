@@ -12,6 +12,7 @@
 #include "../client/Client.h"
 #include "../Serialization.h"
 #define SHUTDOWN_MSG_TYPE 255
+#define TEST_MSG_TYPE 254
 #define BUFF_SZ 512
 
 using namespace std;
@@ -83,13 +84,12 @@ int createSocket() {
     return data_socket;
 }
 
-void connectToServer(sockaddr_in addr, int data_socket) {
+void connectToServer(sockaddr_in addr, int socket) {
     int ret;
-    ret = connect (data_socket, (const struct sockaddr *) &addr,
+    ret = connect (socket, (const struct sockaddr *) &addr,
                    sizeof(struct sockaddr_in));
     if (ret == -1) {
-        cout << "probe: server is down" <<endl;
-        fprintf(stderr, "Probe: The server is down.\n");
+        cerr << "Probe: server is down " << errno << endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -186,6 +186,23 @@ int getServerID(vector<sockaddr_in> addrs, int port) {
     exit(EXIT_FAILURE);
 }
 
+int createNewSocket(){
+    int socket = createSocket();
+    setSocketReuseOption(socket);
+    return socket;
+}
+
+RaftMessage startProbeServerAndReceiveOneResponse(int probePort){
+    probeListenSocket = createNewSocket();
+    bindSocket(probeListenSocket, probePort);
+    int ret = listen(probeListenSocket, 20);
+    checkError(ret, "listen");
+    clearBuffers();
+    int data_socket = acceptConnection(probeListenSocket);
+    RaftMessage response = receiveRaftMessage(data_socket);
+    close(data_socket);
+    return response;
+}
 
 
 void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
@@ -210,63 +227,92 @@ void assertCorrectAppendEntriesResponse(RaftMessage expected, RaftMessage actual
 
 
 
-//TEST(ServerTest, ClientSendsRaftMessageToServer){
-//    vector<pid_t> pids;
-//    pid_t serverPID = startServer(1090);
-//    pids.push_back(serverPID);
-//    sleep(0.5);
-//
-//    vector<sockaddr_in> serverAddrs;
-//    serverAddrs.push_back(createSocketAddress(1090));
-//    vector<struct RaftMessage> messages;
-//    messages.push_back(getBasicRaftMessage());
-//    messages.push_back(getShutDownMessage());
-//    pid_t clientPID = startClient(serverAddrs, messages);
-//    pids.push_back(clientPID);
-//
-//    waitForAllProcesses(pids);
-//}
+
 
 TEST(ServerTest, ServerRespondsSuccessResponseForAppendEntriesWithIntialStateValues){
+    //create addresses
     int serverPort = 1090;
     int probePort = 1091;
     vector<sockaddr_in> serverAddrs;
     serverAddrs.push_back(createAddr(serverPort));
     serverAddrs.push_back(createAddr(probePort));
+
+    //srart server
     vector<pid_t> pids;
     pid_t serverPID = startServer(serverPort, serverAddrs);
     pids.push_back(serverPID);
     sleep(0.5);
 
-    probeListenSocket = createSocket();
-    setSocketReuseOption(probeListenSocket);
-    bindSocket(probeListenSocket, probePort);
-    int ret = listen(probeListenSocket, 20);
-    checkError(ret, "listen");
-    clearBuffers();
 
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveOneResponse(probePort);
+        assertCorrectAppendEntriesResponse(createRaftMessage(2, true, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
     RaftMessage msg = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 3, "A\n\r");
     RaftMessage shutdown = getShutDownMessage();
-
-    probeSendSocket = createSocket();
-    setSocketReuseOption(probeSendSocket);
+    probeSendSocket = createNewSocket();
+    //send appendentries
     connectToServer(serverAddrs[0], probeSendSocket);
-
-
-
     sendRaftMessage(probeSendSocket, msg);
     close(probeSendSocket);
-    probeSendSocket = createSocket();
-    setSocketReuseOption(probeSendSocket);
+
+    probeSendSocket = createNewSocket();
+    //send shutdown messages
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, shutdown);
-
     close(probeSendSocket);
 
-    int data_socket = acceptConnection(probeSendSocket);
-    RaftMessage response = receiveRaftMessage(data_socket);
-    close(data_socket);
-    assertCorrectAppendEntriesResponse(createRaftMessage(2, true, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
     waitForAllProcesses(pids);
 }
 
+TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithLesserCurrentTerm){
+    //create addresses
+    int serverPort = 1090;
+    int probePort = 1091;
+    vector<sockaddr_in> serverAddrs;
+    serverAddrs.push_back(createAddr(serverPort));
+    serverAddrs.push_back(createAddr(probePort));
+
+    //srart server
+    vector<pid_t> pids;
+    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pids.push_back(serverPID);
+    sleep(0.5);
+
+
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveOneResponse(probePort);
+        assertCorrectAppendEntriesResponse(createRaftMessage(2, false, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
+    RaftMessage setServerState = createRaftMessage(TEST_MSG_TYPE, true, 1, 2, 0,0,0,0,0,3,"A\n\r");
+    RaftMessage appendEntries = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 3, "A\n\r");
+    RaftMessage shutdown = getShutDownMessage();
+
+    //set server state
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, setServerState);
+    close(probeSendSocket);
+
+    //send appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, appendEntries);
+    close(probeSendSocket);
+
+    probeSendSocket = createNewSocket();
+    //send shutdown messages
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, shutdown);
+    close(probeSendSocket);
+
+    waitForAllProcesses(pids);
+}

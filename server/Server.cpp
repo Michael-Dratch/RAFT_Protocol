@@ -22,7 +22,6 @@ void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs){
     cout << "SERVER: STARTED" << endl;
     serverAddresses = serverAddrs;
     serverID = getServerID(portNumber);
-    cout << "serverID: " << serverID << endl;
     int listen_socket, ret;
     struct sockaddr_in addr;
 
@@ -45,7 +44,6 @@ void Server::process_requests(int listen_socket) {
         clearBuffers();
         data_socket = acceptConnection(listen_socket);
         RaftMessage msg = receiveRaftMessage(data_socket);
-        cout << "Server received message" << endl;
         close(data_socket);
         if (msg.type == SHUTDOWN_MSG_TYPE){
             cout << "SERVER SHUTTING DOWN" << endl;
@@ -58,17 +56,20 @@ void Server::process_requests(int listen_socket) {
 void Server::dispatch(RaftMessage message) {
     switch(message.type){
         case APPEND_ENTRIES_TYPE:
-            cout << "received append entries msg" << endl;
+            cout << "SERVER " << serverID << " RECEIVED APPEND ENTRIES MESSAGE" << endl;
             handleAppendEntries(message);
             break;
         case APPEND_ENTRIES_RES_TYPE:
-            cout << "received append entries response" << endl;
+            cout << "SERVER " << serverID << " RECEIVED APPEND ENTRIES RESPONSE" << endl;
             break;
         case REQUEST_VOTE_TYPE:
-            cout << "received request vote" << endl;
+            cout << "SERVER " << serverID << " RECEIVED REQUEST VOTE" << endl;
             break;
         case REQuEST_VOTE_RES_TYPE:
-            cout << "received request vote response" << endl;
+            cout << "SERVER " << serverID << " RECEIVED REQUEST VOTE RESPONSE" << endl;
+            break;
+        case TEST_MSG_TYPE:
+            handleTestMessage(message);
             break;
         default:
             return;
@@ -76,14 +77,31 @@ void Server::dispatch(RaftMessage message) {
 }
 
 void Server::handleAppendEntries(RaftMessage message) {
-    sendAppendEntriesResponse(message);
+    updateCurrentTerm(message.currentTerm);
+    if (doesAppendEntriesFail(message)){
+        sendAppendEntriesResponse(message, false);
+    }
+    sendAppendEntriesResponse(message, true);
 }
 
 
-void Server::sendAppendEntriesResponse(RaftMessage message) {
+
+
+bool Server::doesAppendEntriesFail(RaftMessage msg) {
+    if (msg.currentTerm < currentTerm) return true;
+//    else if (msg.prevLogIndex == -1) return false;
+//    else if (log.size() <= msg.prevLogIndex) return true;
+//    if (log.size() < 1) return false;
+//    else if(log[msg.prevLogIndex]->currentTerm != msg.prevLogTerm) return true;
+    return false;
+}
+
+
+
+void Server::sendAppendEntriesResponse(RaftMessage message, bool success) {
     int socket = createSocket();
     connectToServer(getServerAddrFromID(message.senderID), socket);
-    RaftMessage msg = createRaftMessage(2, true, serverID, 0,0,0,0, 0,0,0,"");
+    RaftMessage msg = createRaftMessage(2, success, serverID, 0,0,0,0, 0,0,0,"");
     sendRaftMessage(socket, msg);
     close(socket);
 }
@@ -111,18 +129,19 @@ void Server::sendRaftMessage(int socket, RaftMessage msg) {
     sendPacket(socket, entriesPacket, entriesSize);
 }
 
+
+
 void Server::sendPacket(int socket, uint8_t *packet, int packetSize) {
     int ret = send(socket, packet, packetSize, 0);
     if (ret == -1){std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;}
 }
-
-
 
 RaftMessage Server::receiveRaftMessage(int data_socket) {
     RaftMessage msg = receiveMessageHeader(data_socket);
     msg = receiveEntries(data_socket, msg);
     return msg;
 }
+
 
 RaftMessage &Server::receiveEntries(int data_socket, RaftMessage &msg) {
     int bytesRead = recv(data_socket, recv_buffer, msg.entriesLength, 0);
@@ -131,7 +150,6 @@ RaftMessage &Server::receiveEntries(int data_socket, RaftMessage &msg) {
     return msg;
 }
 
-
 RaftMessage Server::receiveMessageHeader(int data_socket) {
     int bytesRead = recv(data_socket, recv_buffer, 37, 0);
     checkError(bytesRead, "read error");
@@ -139,12 +157,12 @@ RaftMessage Server::receiveMessageHeader(int data_socket) {
     return msg;
 }
 
+
 int Server::acceptConnection(int listen_socket) {
     int data_socket = accept(listen_socket, NULL, NULL);
     checkError(data_socket, "accept");
     return data_socket;
 }
-
 
 void Server::clearBuffers() {
     memset(send_buffer, 0, sizeof(send_buffer));
@@ -185,6 +203,15 @@ int Server::getServerID(int portNumber) {
     }
     cerr << "server address are misconfigured" << endl;
     exit(EXIT_FAILURE);
+}
+
+void Server::updateCurrentTerm(int term) {
+    if (term > this->currentTerm){ currentTerm = term;}
+}
+
+void Server::handleTestMessage(RaftMessage message) {
+    cout << "SETTING SERVER STATE" << endl;
+    currentTerm = message.currentTerm;
 }
 
 
