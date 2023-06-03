@@ -220,9 +220,9 @@ void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
 }
 
 void assertCorrectAppendEntriesResponse(RaftMessage expected, RaftMessage actual){
-    EXPECT_TRUE(expected.type == actual.type);
-    EXPECT_TRUE(expected.success == actual.success);
-    EXPECT_TRUE(expected.currentTerm == actual.currentTerm);
+    EXPECT_EQ(expected.type,actual.type);
+    EXPECT_EQ(expected.success,actual.success);
+    EXPECT_EQ(expected.currentTerm,actual.currentTerm);
 }
 
 
@@ -301,6 +301,47 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithLesserCurrentTerm){
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, setServerState);
     close(probeSendSocket);
+
+    //send appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, appendEntries);
+    close(probeSendSocket);
+
+    probeSendSocket = createNewSocket();
+    //send shutdown messages
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, shutdown);
+    close(probeSendSocket);
+
+    waitForAllProcesses(pids);
+}
+
+TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithPrevLogIndexGreaterThanLogSize){
+    //create addresses
+    int serverPort = 1090;
+    int probePort = 1091;
+    vector<sockaddr_in> serverAddrs;
+    serverAddrs.push_back(createAddr(serverPort));
+    serverAddrs.push_back(createAddr(probePort));
+
+    //srart server
+    vector<pid_t> pids;
+    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pids.push_back(serverPID);
+    sleep(0.5);
+
+
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveOneResponse(probePort);
+        assertCorrectAppendEntriesResponse(createRaftMessage(2, false, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
+    RaftMessage appendEntries = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 1, 0, 0, 3, "A\n\r");
+    RaftMessage shutdown = getShutDownMessage();
 
     //send appendentries
     probeSendSocket = createNewSocket();

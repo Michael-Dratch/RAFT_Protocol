@@ -91,4 +91,6 @@ private:
     bool doesAppendEntriesFail(RaftMessage message);
 
     void handleTestMessage(RaftMessage message);
+
+    void initializeRaftState();
 };

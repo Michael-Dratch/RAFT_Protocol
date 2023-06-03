@@ -22,6 +22,7 @@ void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs){
     cout << "SERVER: STARTED" << endl;
     serverAddresses = serverAddrs;
     serverID = getServerID(portNumber);
+    initializeRaftState();
     int listen_socket, ret;
     struct sockaddr_in addr;
 
@@ -88,10 +89,10 @@ void Server::handleAppendEntries(RaftMessage message) {
 
 
 bool Server::doesAppendEntriesFail(RaftMessage msg) {
-    if (msg.currentTerm < currentTerm) return true;
-//    else if (msg.prevLogIndex == -1) return false;
-//    else if (log.size() <= msg.prevLogIndex) return true;
-//    if (log.size() < 1) return false;
+    if (msg.currentTerm < currentTerm) {return true;}
+    else if (msg.prevLogIndex == 0) {return false;}
+    else if (log.size() < msg.prevLogIndex) {return true;}
+    if (log.size() < 1) {return false;}
 //    else if(log[msg.prevLogIndex]->currentTerm != msg.prevLogTerm) return true;
     return false;
 }
@@ -212,6 +213,12 @@ void Server::updateCurrentTerm(int term) {
 void Server::handleTestMessage(RaftMessage message) {
     cout << "SETTING SERVER STATE" << endl;
     currentTerm = message.currentTerm;
+}
+
+void Server::initializeRaftState() {
+    currentTerm = 0;
+    commitIndex = 0;
+    lastApplied = 0;
 }
 
 
