@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include "../RaftMessage.h"
+#include "../Entry.h"
 
 
 #define BUFF_SZ 512
@@ -45,7 +46,7 @@ private:
 
     sockaddr_in votedFor;
 
-    vector<string> log;
+    vector<Entry> log;
 
     int commitIndex;
 
@@ -93,4 +94,12 @@ private:
     void handleTestMessage(RaftMessage message);
 
     void initializeRaftState();
+
+    void addEntriesToLog(RaftMessage msg);
+
+    int parseTerm(string &entries, int &i);
+
+    string parseValue(string &entries, int &i);
+
+    Entry parseEntry(string &entries, int &charIndex);
 };

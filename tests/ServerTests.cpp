@@ -133,7 +133,7 @@ void bindSocket(int listen_socket, int port) {
 void bindSocket(int listen_socket, sockaddr_in addr) {
     int ret = bind(listen_socket, (const struct sockaddr *) &addr,
                    sizeof(struct sockaddr_in));
-    checkError(ret, "accept");
+    checkError(ret, "bine socket from addr");
 }
 
 int acceptConnection(int listen_socket) {
@@ -204,6 +204,20 @@ RaftMessage startProbeServerAndReceiveOneResponse(int probePort){
     return response;
 }
 
+RaftMessage startProbeServerAndReceiveSecondResponse(int probePort){
+    probeListenSocket = createNewSocket();
+    bindSocket(probeListenSocket, probePort);
+    int ret = listen(probeListenSocket, 20);
+    checkError(ret, "listen");
+    clearBuffers();
+    int data_socket = acceptConnection(probeListenSocket);
+    RaftMessage response = receiveRaftMessage(data_socket);
+    close(data_socket);
+    data_socket = acceptConnection(probeListenSocket);
+    response = receiveRaftMessage(data_socket);
+    return response;
+}
+
 
 void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
     EXPECT_TRUE(msg1.type == msg2.type);
@@ -252,16 +266,16 @@ TEST(ServerTest, ServerRespondsSuccessResponseForAppendEntriesWithIntialStateVal
     }
 
     pids.push_back(probeServerPID);
-    RaftMessage msg = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 3, "A\n\r");
+    RaftMessage msg = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 5, "1 A\n\r");
     RaftMessage shutdown = getShutDownMessage();
-    probeSendSocket = createNewSocket();
     //send appendentries
+    probeSendSocket = createNewSocket();
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, msg);
     close(probeSendSocket);
 
-    probeSendSocket = createNewSocket();
     //send shutdown messages
+    probeSendSocket = createNewSocket();
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, shutdown);
     close(probeSendSocket);
@@ -351,6 +365,54 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithPrevLogIndexGreaterThanL
 
     probeSendSocket = createNewSocket();
     //send shutdown messages
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, shutdown);
+    close(probeSendSocket);
+
+    waitForAllProcesses(pids);
+}
+
+TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithConflictingTermsAtPrevLogIndex){
+    //create addresses
+    int serverPort = 1090;
+    int probePort = 1091;
+    vector<sockaddr_in> serverAddrs;
+    serverAddrs.push_back(createAddr(serverPort));
+    serverAddrs.push_back(createAddr(probePort));
+
+    //start server
+    vector<pid_t> pids;
+    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pids.push_back(serverPID);
+    sleep(0.5);
+
+
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveSecondResponse(probePort);
+        assertCorrectAppendEntriesResponse(createRaftMessage(2, false, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
+    RaftMessage appendEntries1 = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 5, "1 A\n\r");
+    RaftMessage appendEntries2 = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 2, 0, 1, 0, 0, 5, "2 A\n\r");
+    RaftMessage shutdown = getShutDownMessage();
+
+    //send appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, appendEntries1);
+    close(probeSendSocket);
+
+    //send conflicting appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, appendEntries2);
+    close(probeSendSocket);
+
+    //send shutdown messages
+    probeSendSocket = createNewSocket();
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, shutdown);
     close(probeSendSocket);

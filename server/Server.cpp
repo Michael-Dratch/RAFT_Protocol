@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include "Server.h"
+#include "../Entry.h"
 #include "../Serialization.h"
 #include "../RaftMessage.h"
 
@@ -80,8 +81,12 @@ void Server::dispatch(RaftMessage message) {
 void Server::handleAppendEntries(RaftMessage message) {
     updateCurrentTerm(message.currentTerm);
     if (doesAppendEntriesFail(message)){
+        cout << "APPEND ENTRIES FAILS" << endl;
         sendAppendEntriesResponse(message, false);
+        return;
     }
+    cout << "APPEND ENTRIES SUCCEEDS" << endl;
+    addEntriesToLog(message);
     sendAppendEntriesResponse(message, true);
 }
 
@@ -93,7 +98,7 @@ bool Server::doesAppendEntriesFail(RaftMessage msg) {
     else if (msg.prevLogIndex == 0) {return false;}
     else if (log.size() < msg.prevLogIndex) {return true;}
     if (log.size() < 1) {return false;}
-//    else if(log[msg.prevLogIndex]->currentTerm != msg.prevLogTerm) return true;
+    else if( log.at(msg.prevLogIndex-1).term != msg.prevLogTerm) {return true;}
     return false;
 }
 
@@ -219,6 +224,56 @@ void Server::initializeRaftState() {
     currentTerm = 0;
     commitIndex = 0;
     lastApplied = 0;
+}
+
+void Server::addEntriesToLog(RaftMessage msg) {
+    string entries = msg.entries;
+    int charIndex = 0;
+    bool doneParsingEntries = false;
+    if (msg.entriesLength <= 0){ doneParsingEntries = true;}
+    while(!doneParsingEntries){
+        Entry entry = parseEntry(entries, charIndex);
+        log.push_back(entry);
+        if (charIndex >= msg.entriesLength){
+            doneParsingEntries = true;
+        }
+    }
+}
+
+Entry Server::parseEntry(string &entries, int &charIndex) {
+    int term = parseTerm(entries, charIndex);
+    string value = parseValue(entries, charIndex);
+    Entry entry;
+    entry.term = term;
+    entry.value = value;
+    return entry;
+}
+
+int Server::parseTerm(string &entries, int &i) {
+    string termString = "";
+    while (entries.at(i) != ' '){
+        termString += entries.at(i);
+        i++;
+    }
+    i++;
+    int term;
+    try {
+        term = stoi(termString);
+    } catch (const std::invalid_argument& e){
+        cerr << "invalid argument exception: " << e.what() << endl;
+        term = 0;
+    }
+    return term;
+}
+
+string Server::parseValue(string &entries, int &i) {
+    string value= "";
+    while(!(entries.at(i) == '\n' && entries.at(i + 1) == '\r')){
+        value += entries.at(i);
+        i++;
+    }
+    i += 2;
+    return value;
 }
 
 
