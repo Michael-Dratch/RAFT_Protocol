@@ -1,0 +1,61 @@
+Michael Dratch
+CS544 - Computer Networks
+Term Project Part #3 - Network Protocol Implementation
+6/5/2023
+
+Introduction:
+This application is a partial implementation of the RAFT consensus protocol in C++. It was developed in the Windows
+subsystem for Linux. I used CMAKE as the build tool and used the Google testing framework. Given that the protocol
+defines communication between servers, I did not create an interactive user interface. I'm relying on my tests to
+demonstrate the functionality of the program and simulate different scenarios that would occur in an interaction between
+servers. The implementation covers the interaction between follower nodes and leaders in the replication of data. I
+attempted to build the application in a way that would be easily extended to perform the full RAFT protocol.
+
+Design Summary:
+The entry point of the application running on any given node is the Server class.
+This class handles creating a server socket, accepting messages from clients and other
+servers, and dispatching messages to the classes which handle RAFT logic. The server class uses serialization functions
+which are all in Serialization.cpp.
+
+RAFT STATE MACHINE
+Each host is designed as a state machine that accepts RAFT messages, reacts to those messages, and then possibly
+changes state. Each state and its associated message handling is encapsulated in the raft state classes Leader and
+Follower. These classes implement the interface RaftBehavior so that the server can dispatch messages without knowing which
+state it is currently in.
+Each handler function returns an instance of one of the state classes (either itself or a different state) to be used
+to handle the next message.
+
+RAFT MESSAGE
+The Raft Message PDU design is implemented in RaftMessage.h as a struct. I changed my design slightly so that all of the
+numerical values in the message were 32-bit integers to make serialization simpler.
+
+EXTENSIBILITY
+A main part of the extensibility of my design was that there is an arbitrarily long text portion of the raft messages.
+There is a specific syntax and use for this field in the protocol (sending new entries from a leader to a follower) but
+the field can easily be changed to be used for different purposes. I used this flexibility to add a custom message type
+for client requests in this specific application so that I could reuse the message handling code for client request
+processing.
+
+Testing
+To develop and test this project I used the Google testing framework. I am also relying on these tests as a demonstration
+of the project functionality. Given that the protocol defines messages between back-end servers, I created test cases that
+simulate the message servers would receive as a consequence of different client/server and server/server interactions.
+When running the entire suite all at once, Google Test tries to run the tests concurrently which causes errors in the
+socket code. So these tests need to be run individually.
+
+Extra Credit:
+Concurrency: While the servers themselves cannot process messages concurrently due to the requirements of the RAFT algorithm, I spent
+a lot of time working to integrate multiprocessing into my tests in order to correctly simulate asynchronous nodes communicating
+to each other.
+
+Learning Outcomes Summary:
+Implementing this protocol increased my learning in this course in several ways. One, of the most challenging aspects of this
+assignment, was learning how to implement low-level multiprocessing, socket programming, and serialization in C++.
+This helped me gain a much greater understanding of the challenges associated with designing programs for an asynchronous
+and heterogeneous environment. It was also useful to see these issues in the context of my larger application and see
+how different choices would impact the way I would need to design higher-level behaviors.
+Secondly, I gained a better understanding of why flexibility is important in a protocol. Now that I have a better understanding
+of my own application I know that I needed to include several more fields and even extra unused fields for the future. There
+were significant fields required for the RAFT algorithm that I missed in the original design. There are further fields
+that I know would make it much easier to add improvements and useful features to the application. I am much more aware
+of the importance of flexibility is protocol design and the need to plan for change.
