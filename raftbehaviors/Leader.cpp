@@ -11,6 +11,7 @@
 #include "Follower.h"
 #include "../RaftMessage.h"
 
+// leader only checks append entries messages to ensure server term is not out of date
 RaftBehavior* Leader::handleAppendEntries(RaftMessage message) {
     if (message.currentTerm > server->currentTerm){return getFollowerBehavior();}
     else {return getSameBehavior();}
@@ -29,6 +30,7 @@ RaftBehavior *Leader::getSameBehavior() {
     return behavior;
 }
 
+// Functions for handling client update requests and sending correct append entries messages from Leader state
 RaftBehavior *Leader::handleClientRequest(RaftMessage message) {
     vector<string> commands = parseClientCommands(message);
     string raftEntries = createRaftEntries(commands);

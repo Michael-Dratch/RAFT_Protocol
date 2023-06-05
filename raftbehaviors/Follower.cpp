@@ -6,6 +6,7 @@
 #include "../server/Server.h"
 #include "RaftBehavior.h"
 
+//All functions related to handling append entries messages and sending correct responses from the follower state
 RaftBehavior* Follower::handleAppendEntries(RaftMessage message) {
     cout << "HANDLING APPEND ENTRIES" << endl;
     updateCurrentTerm(message.currentTerm);

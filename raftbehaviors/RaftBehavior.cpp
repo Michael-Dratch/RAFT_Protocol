@@ -11,6 +11,7 @@
 #include "RaftBehavior.h"
 #include "../Serialization.h"
 
+//Common functions used by RAFT state classes to send messages and update server state
 
 void RaftBehavior::sendAppendEntriesResponse(RaftMessage message, bool success) {
     int socket = createSocket();

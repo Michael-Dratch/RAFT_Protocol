@@ -73,6 +73,9 @@ void Server::process_requests(int listen_socket) {
     }
 }
 
+// Server dispatches messages to the behavior class which performs the RAFT logic. As of now only the entry replication
+// using the AppendEntries message and client request messages are implemented
+
 void Server::dispatch(RaftMessage message) {
     switch(message.type){
         case APPEND_ENTRIES_TYPE:
@@ -101,6 +104,7 @@ void Server::dispatch(RaftMessage message) {
 }
 
 
+// SOCKET COMMUNICATION FUNCTIONS
 
 void Server::connectToServer(sockaddr_in addr, int socket) {
     int ret;
