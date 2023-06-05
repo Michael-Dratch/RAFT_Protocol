@@ -13,13 +13,16 @@
 class Follower: public RaftBehavior {
 public:
     Follower(RaftHost *parentServer): RaftBehavior(parentServer){};
-    void handleAppendEntries(RaftMessage message) override;
+    RaftBehavior* handleAppendEntries(RaftMessage message) override;
+    RaftBehavior* handleClientRequest(RaftMessage message) override;
+
 private:
     bool doesAppendEntriesFail(RaftMessage message);
     void addEntriesToLog(RaftMessage msg);
     int parseTerm(string &entries, int &i);
     string parseValue(string &entries, int &i);
     Entry parseEntry(string &entries, int &charIndex);
+    RaftBehavior *getSameBehavior();
 };
 
 

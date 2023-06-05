@@ -15,7 +15,8 @@ public:
         server = parentServer;
     }
 
-    virtual void handleAppendEntries(RaftMessage message) = 0;
+    virtual RaftBehavior* handleAppendEntries(RaftMessage message) = 0;
+    virtual RaftBehavior* handleClientRequest(RaftMessage message) = 0;
 protected:
     RaftHost *server;
 

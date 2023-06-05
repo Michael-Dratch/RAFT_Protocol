@@ -6,12 +6,13 @@
 #include "../server/Server.h"
 #include "RaftBehavior.h"
 
-void Follower::handleAppendEntries(RaftMessage message) {
+RaftBehavior* Follower::handleAppendEntries(RaftMessage message) {
+    cout << "HANDLING APPEND ENTRIES" << endl;
     updateCurrentTerm(message.currentTerm);
     if (doesAppendEntriesFail(message)){
         cout << "APPEND ENTRIES FAILS" << endl;
         sendAppendEntriesResponse(message, false);
-        return;
+        return getSameBehavior();
     }
     cout << "APPEND ENTRIES SUCCEEDS" << endl;
     addEntriesToLog(message);
@@ -42,7 +43,6 @@ void Follower::addEntriesToLog(RaftMessage msg) {
     }
 }
 
-
 Entry Follower::parseEntry(string &entries, int &charIndex) {
     int term = parseTerm(entries, charIndex);
     string value = parseValue(entries, charIndex);
@@ -51,6 +51,7 @@ Entry Follower::parseEntry(string &entries, int &charIndex) {
     entry.value = value;
     return entry;
 }
+
 
 int Follower::parseTerm(string &entries, int &i) {
     string termString = "";
@@ -77,4 +78,15 @@ string Follower::parseValue(string &entries, int &i) {
     }
     i += 2;
     return value;
+}
+
+RaftBehavior *Follower::getSameBehavior() {
+    RaftBehavior *sameBehavior;
+    sameBehavior = this;
+    return sameBehavior;
+}
+
+RaftBehavior *Follower::handleClientRequest(RaftMessage message) {
+    cout << "redirect message to current leader" << endl;
+    return getSameBehavior();
 }

@@ -15,12 +15,15 @@
 #include "../Serialization.h"
 #include "../RaftMessage.h"
 #include "../raftbehaviors/Follower.h"
+#include "../raftbehaviors/Leader.h"
 
+#define FOLLOWER 1
+#define LEADER 2
 
 using namespace std;
 
 
-void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs){
+void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs, int behaviorType){
     cout << "SERVER: STARTED" << endl;
     serverAddresses = serverAddrs;
     serverID = getServerID(portNumber);
@@ -28,9 +31,19 @@ void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs){
     int listen_socket, ret;
     struct sockaddr_in addr;
 
-    Server* self = this;
-    Follower follower(self);
-    behavior = &follower;
+
+    //Initialize Raft Behavior. Behaviors act as state machine states and handle RAFT messages. Can dynamically change.
+    if (behaviorType == FOLLOWER){
+        Server* self = this;
+        Follower follower(self);
+        behavior = &follower;
+    }
+    else if (behaviorType == LEADER){
+        Server* self = this;
+        Leader leader(self);
+        behavior = &leader;
+    }
+
 
     listen_socket = socket(AF_INET, SOCK_STREAM, 0);
     checkError(listen_socket, "socket");
@@ -64,7 +77,7 @@ void Server::dispatch(RaftMessage message) {
     switch(message.type){
         case APPEND_ENTRIES_TYPE:
             cout << "SERVER " << serverID << " RECEIVED APPEND ENTRIES MESSAGE" << endl;
-            behavior->handleAppendEntries(message);
+            behavior = behavior->handleAppendEntries(message);
             break;
         case APPEND_ENTRIES_RES_TYPE:
             cout << "SERVER " << serverID << " RECEIVED APPEND ENTRIES RESPONSE" << endl;
@@ -74,6 +87,10 @@ void Server::dispatch(RaftMessage message) {
             break;
         case REQuEST_VOTE_RES_TYPE:
             cout << "SERVER " << serverID << " RECEIVED REQUEST VOTE RESPONSE" << endl;
+            break;
+        case CLIENT_MSG_TYPE:
+            cout << "SERVER " << serverID << " RECEIVED CLIENT REQUEST" << endl;
+            behavior = behavior->handleClientRequest(message);
             break;
         case TEST_MSG_TYPE:
             handleTestMessage(message);

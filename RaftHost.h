@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <vector>
 #include "Entry.h"
+#include "./raftbehaviors/RaftBehavior.h"
 
 #ifndef RAFT_PROTOCOL_RAFTHOST_H
 #define RAFT_PROTOCOL_RAFTHOST_H
@@ -18,6 +19,10 @@ public:
     int currentTerm;
 
     vector<sockaddr_in> serverAddresses;
+
+    int commitIndex;
+
+    int lastApplied;
 };
 
 

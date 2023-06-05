@@ -13,7 +13,11 @@
 #include "../Serialization.h"
 #define SHUTDOWN_MSG_TYPE 255
 #define TEST_MSG_TYPE 254
+#define CLIENT_MSG_TYPE 253
+
 #define BUFF_SZ 512
+#define FOLLOWER 1
+#define LEADER 2
 
 using namespace std;
 
@@ -32,9 +36,9 @@ void runClient(vector<sockaddr_in> serverAddrs, vector<RaftMessage> &messages) {
     exit(0);
 }
 
-void runServer(int port, vector<sockaddr_in> serverAddrs) {
+void runServer(int port, vector<sockaddr_in> serverAddrs, int behavior) {
     Server s;
-    s.start_server(port, serverAddrs);
+    s.start_server(port, serverAddrs, behavior);
     exit(0);
 };
 
@@ -45,9 +49,9 @@ void waitForAllProcesses(vector<pid_t> pids){
     }
 }
 
-pid_t startServer(int port, vector<sockaddr_in> serverAddrs){
+pid_t startServer(int port, vector<sockaddr_in> serverAddrs, int behavior){
     pid_t serverPID = fork();
-    if (serverPID == 0) {runServer(port, serverAddrs);}
+    if (serverPID == 0) {runServer(port, serverAddrs, behavior);}
     return serverPID;
 }
 
@@ -219,18 +223,18 @@ RaftMessage startProbeServerAndReceiveSecondResponse(int probePort){
 }
 
 
-void assertRaftMessagesEqual(RaftMessage msg1, RaftMessage msg2){
-    EXPECT_TRUE(msg1.type == msg2.type);
-    EXPECT_TRUE(msg1.success == msg2.success);
-    EXPECT_TRUE(msg1.senderID == msg2.senderID);
-    EXPECT_TRUE(msg1.currentTerm == msg2.currentTerm);
-    EXPECT_TRUE(msg1.prevLogTerm == msg2.prevLogTerm);
-    EXPECT_TRUE(msg1.lastLogTerm == msg2.lastLogTerm);
-    EXPECT_TRUE(msg1.prevLogIndex == msg2.prevLogIndex);
-    EXPECT_TRUE(msg1.lastLogIndex == msg2.lastLogIndex);
-    EXPECT_TRUE(msg1.commitIndex == msg2.commitIndex);
-    EXPECT_TRUE(msg1.entriesLength == msg2.entriesLength);
-    EXPECT_TRUE(msg1.entries == msg2.entries);
+void assertRaftMessagesEqual(RaftMessage expected, RaftMessage actual){
+    EXPECT_EQ(expected.type, actual.type);
+    EXPECT_EQ(expected.success, actual.success);
+    EXPECT_EQ(expected.senderID, actual.senderID);
+    EXPECT_EQ(expected.currentTerm, actual.currentTerm);
+    EXPECT_EQ(expected.prevLogTerm, actual.prevLogTerm);
+    EXPECT_EQ(expected.lastLogTerm, actual.lastLogTerm);
+    EXPECT_EQ(expected.prevLogIndex, actual.prevLogIndex);
+    EXPECT_EQ(expected.lastLogIndex, actual.lastLogIndex);
+    EXPECT_EQ(expected.commitIndex, actual.commitIndex);
+    EXPECT_EQ(expected.entriesLength, actual.entriesLength);
+    EXPECT_EQ(expected.entries, actual.entries);
 }
 
 void assertCorrectAppendEntriesResponse(RaftMessage expected, RaftMessage actual){
@@ -253,7 +257,7 @@ TEST(ServerTest, ServerRespondsSuccessResponseForAppendEntriesWithIntialStateVal
 
     //srart server
     vector<pid_t> pids;
-    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pid_t serverPID = startServer(serverPort, serverAddrs, FOLLOWER);
     pids.push_back(serverPID);
     sleep(0.5);
 
@@ -293,7 +297,7 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithLesserCurrentTerm){
 
     //srart server
     vector<pid_t> pids;
-    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pid_t serverPID = startServer(serverPort, serverAddrs, FOLLOWER);
     pids.push_back(serverPID);
     sleep(0.5);
 
@@ -341,7 +345,7 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithPrevLogIndexGreaterThanL
 
     //srart server
     vector<pid_t> pids;
-    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pid_t serverPID = startServer(serverPort, serverAddrs, FOLLOWER);
     pids.push_back(serverPID);
     sleep(0.5);
 
@@ -382,7 +386,7 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithConflictingTermsAtPrevLo
 
     //start server
     vector<pid_t> pids;
-    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pid_t serverPID = startServer(serverPort, serverAddrs, FOLLOWER);
     pids.push_back(serverPID);
     sleep(0.5);
 
@@ -431,7 +435,7 @@ TEST(ServerTest, serverSuccesfullyProcessesMultipleEntriesInAppendEntriesMessage
 
     //srart server
     vector<pid_t> pids;
-    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pid_t serverPID = startServer(serverPort, serverAddrs, FOLLOWER);
     pids.push_back(serverPID);
     sleep(0.5);
 
@@ -451,6 +455,47 @@ TEST(ServerTest, serverSuccesfullyProcessesMultipleEntriesInAppendEntriesMessage
     probeSendSocket = createNewSocket();
     connectToServer(serverAddrs[0], probeSendSocket);
     sendRaftMessage(probeSendSocket, appendEntries);
+    close(probeSendSocket);
+
+    //send shutdown messages
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, shutdown);
+    close(probeSendSocket);
+
+    waitForAllProcesses(pids);
+}
+
+TEST(ServerTest, leaderAcceptsClientRequestAndSendsCorrectAppendEntriesMessageToFollowers){
+    //create addresses
+    int serverPort = 1090;
+    int probePort = 1091;
+    vector<sockaddr_in> serverAddrs;
+    serverAddrs.push_back(createAddr(serverPort));
+    serverAddrs.push_back(createAddr(probePort));
+
+    //start leader
+    vector<pid_t> pids;
+    pid_t serverPID = startServer(serverPort, serverAddrs, LEADER);
+    pids.push_back(serverPID);
+    sleep(0.5);
+
+
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveOneResponse(probePort);
+        assertRaftMessagesEqual(createRaftMessage(APPEND_ENTRIES_TYPE, true, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,16,"0 TEST COMMAND\n\r"), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
+    RaftMessage clientRequest = createRaftMessage(CLIENT_MSG_TYPE, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 14, "TEST COMMAND\n\r");
+    RaftMessage shutdown = getShutDownMessage();
+
+    //send appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, clientRequest);
     close(probeSendSocket);
 
     //send shutdown messages
