@@ -1,7 +1,13 @@
 //
 // Created by Owner on 6/4/2023.
 //
-
+#include <sys/socket.h>
+#include <string>
+#include <cstdlib>
+#include <iostream>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/un.h>
 #include "RaftBehavior.h"
 #include "../Serialization.h"
 

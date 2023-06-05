@@ -15,9 +15,12 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/un.h>
+#include "../RaftHost.h"
 #include "../RaftMessage.h"
 #include "../Entry.h"
 #include "../raftbehaviors/RaftBehavior.h"
+#include "../raftbehaviors/Follower.h"
+
 
 
 #ifndef RAFT_PROTOCOL_SERVER_H
@@ -33,20 +36,21 @@
 #define REQUEST_VOTE_TYPE 4
 #define REQuEST_VOTE_RES_TYPE 8
 
-class Server{
+class Server: public RaftHost{
 
 public:
+
     void start_server(int portNumber, vector<sockaddr_in> serverAddresses);
 
     void process_requests(int listen_socket);
 
-    vector<Entry> log;
-
-    int serverID;
-
-    int currentTerm;
-
-    vector<sockaddr_in> serverAddresses;
+//    vector<Entry> log;
+//
+//    int serverID;
+//
+//    int currentTerm;
+//
+//    vector<sockaddr_in> serverAddresses;
 
 private:
 
@@ -56,7 +60,7 @@ private:
 
     sockaddr_in votedFor;
 
-    RaftBehavior behavior;
+    RaftBehavior *behavior;
 
     int commitIndex;
 

@@ -1,23 +1,23 @@
 //
 // Created by Owner on 6/4/2023.
 //
-
-#include "../server/Server.h"
-#include "../RaftMessage.h"
-
+//
 #ifndef RAFT_PROTOCOL_RAFTBEHAVIOR_H
+
 #define RAFT_PROTOCOL_RAFTBEHAVIOR_H
 
+#include "../RaftMessage.h"
+#include "../RaftHost.h"
 
 class RaftBehavior {
 public:
-    RaftBehavior(Server *parentServer){
+    RaftBehavior(RaftHost *parentServer){
         server = parentServer;
     }
 
     virtual void handleAppendEntries(RaftMessage message) = 0;
 protected:
-    Server *server;
+    RaftHost *server;
 
     void sendAppendEntriesResponse(RaftMessage message, bool success);
     void connectToServer(sockaddr_in addr, int socket);
