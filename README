@@ -12,7 +12,7 @@ servers. The implementation covers the interaction between follower nodes and le
 attempted to build the application in a way that would be easily extended to perform the full RAFT protocol.
 
 Design Summary:
-The entry point of the application running on any given node is the Server class.
+The entry point of the application running on any given node is the Server class, in the sever directory.
 This class handles creating a server socket, accepting messages from clients and other
 servers, and dispatching messages to the classes which handle RAFT logic. The server class uses serialization functions
 which are all in Serialization.cpp.
@@ -20,7 +20,7 @@ which are all in Serialization.cpp.
 RAFT STATE MACHINE
 Each host is designed as a state machine that accepts RAFT messages, reacts to those messages, and then possibly
 changes state. Each state and its associated message handling is encapsulated in the raft state classes Leader and
-Follower. These classes implement the interface RaftBehavior so that the server can dispatch messages without knowing which
+Follower, in the raftbehaviors directory. These classes implement the interface RaftBehavior so that the server can dispatch messages without knowing which
 state it is currently in.
 Each handler function returns an instance of one of the state classes (either itself or a different state) to be used
 to handle the next message.
