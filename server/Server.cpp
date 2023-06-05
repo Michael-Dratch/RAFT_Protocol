@@ -14,6 +14,7 @@
 #include "../Entry.h"
 #include "../Serialization.h"
 #include "../RaftMessage.h"
+#include "../raftbehaviors/Follower.h"
 
 
 using namespace std;
@@ -26,6 +27,8 @@ void Server::start_server(int portNumber, vector<sockaddr_in> serverAddrs){
     initializeRaftState();
     int listen_socket, ret;
     struct sockaddr_in addr;
+
+    //behavior = Follower(this);
 
     listen_socket = socket(AF_INET, SOCK_STREAM, 0);
     checkError(listen_socket, "socket");
@@ -88,10 +91,8 @@ void Server::handleAppendEntries(RaftMessage message) {
     cout << "APPEND ENTRIES SUCCEEDS" << endl;
     addEntriesToLog(message);
     sendAppendEntriesResponse(message, true);
+    printLog();
 }
-
-
-
 
 bool Server::doesAppendEntriesFail(RaftMessage msg) {
     if (msg.currentTerm < currentTerm) {return true;}
@@ -103,7 +104,6 @@ bool Server::doesAppendEntriesFail(RaftMessage msg) {
 }
 
 
-
 void Server::sendAppendEntriesResponse(RaftMessage message, bool success) {
     int socket = createSocket();
     connectToServer(getServerAddrFromID(message.senderID), socket);
@@ -111,6 +111,8 @@ void Server::sendAppendEntriesResponse(RaftMessage message, bool success) {
     sendRaftMessage(socket, msg);
     close(socket);
 }
+
+
 
 void Server::connectToServer(sockaddr_in addr, int socket) {
     int ret;
@@ -135,19 +137,18 @@ void Server::sendRaftMessage(int socket, RaftMessage msg) {
     sendPacket(socket, entriesPacket, entriesSize);
 }
 
-
-
 void Server::sendPacket(int socket, uint8_t *packet, int packetSize) {
     int ret = send(socket, packet, packetSize, 0);
     if (ret == -1){std::cerr << "Error: Failed to send data. Error code: " << errno << std::endl;}
 }
+
+
 
 RaftMessage Server::receiveRaftMessage(int data_socket) {
     RaftMessage msg = receiveMessageHeader(data_socket);
     msg = receiveEntries(data_socket, msg);
     return msg;
 }
-
 
 RaftMessage &Server::receiveEntries(int data_socket, RaftMessage &msg) {
     int bytesRead = recv(data_socket, recv_buffer, msg.entriesLength, 0);
@@ -156,6 +157,7 @@ RaftMessage &Server::receiveEntries(int data_socket, RaftMessage &msg) {
     return msg;
 }
 
+
 RaftMessage Server::receiveMessageHeader(int data_socket) {
     int bytesRead = recv(data_socket, recv_buffer, 37, 0);
     checkError(bytesRead, "read error");
@@ -163,12 +165,12 @@ RaftMessage Server::receiveMessageHeader(int data_socket) {
     return msg;
 }
 
-
 int Server::acceptConnection(int listen_socket) {
     int data_socket = accept(listen_socket, NULL, NULL);
     checkError(data_socket, "accept");
     return data_socket;
 }
+
 
 void Server::clearBuffers() {
     memset(send_buffer, 0, sizeof(send_buffer));
@@ -274,6 +276,13 @@ string Server::parseValue(string &entries, int &i) {
     }
     i += 2;
     return value;
+}
+
+void Server::printLog() {
+    cout << "SERVER CURRENT LOG " << endl;
+    for (int i = 0; i < log.size(); i++){
+        cout << "TERM: " << log.at(i).term << " VALUE: " << log.at(i).value << endl;
+    }
 }
 
 

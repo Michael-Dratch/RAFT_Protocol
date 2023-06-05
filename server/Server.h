@@ -3,6 +3,8 @@
  *
  */
 
+
+
 #include <cstdint>
 
 #include <cstdlib>
@@ -15,6 +17,11 @@
 #include <sys/un.h>
 #include "../RaftMessage.h"
 #include "../Entry.h"
+#include "../raftbehaviors/RaftBehavior.h"
+
+
+#ifndef RAFT_PROTOCOL_SERVER_H
+#define RAFT_PROTOCOL_SERVER_H
 
 
 #define BUFF_SZ 512
@@ -33,20 +40,23 @@ public:
 
     void process_requests(int listen_socket);
 
-private:
-    uint8_t send_buffer[BUFF_SZ];
-
-    uint8_t recv_buffer[BUFF_SZ];
-
-    vector<sockaddr_in> serverAddresses;
+    vector<Entry> log;
 
     int serverID;
 
     int currentTerm;
 
+    vector<sockaddr_in> serverAddresses;
+
+private:
+
+    uint8_t send_buffer[BUFF_SZ];
+
+    uint8_t recv_buffer[BUFF_SZ];
+
     sockaddr_in votedFor;
 
-    vector<Entry> log;
+    RaftBehavior behavior;
 
     int commitIndex;
 
@@ -102,4 +112,8 @@ private:
     string parseValue(string &entries, int &i);
 
     Entry parseEntry(string &entries, int &charIndex);
+
+    void printLog();
 };
+
+#endif

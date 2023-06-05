@@ -1,0 +1,26 @@
+//
+// Created by Owner on 6/4/2023.
+//
+#include "../server/Server.h"
+#include "../RaftMessage.h"
+#include "RaftBehavior.h"
+#include "../Entry.h"
+#include <string>
+
+#ifndef RAFT_PROTOCOL_FOLLOWER_H
+#define RAFT_PROTOCOL_FOLLOWER_H
+
+class Follower: public RaftBehavior {
+public:
+    Follower(Server *parentServer): RaftBehavior(parentServer){};
+    void handleAppendEntries(RaftMessage message) override;
+private:
+    bool doesAppendEntriesFail(RaftMessage message);
+    void addEntriesToLog(RaftMessage msg);
+    int parseTerm(string &entries, int &i);
+    string parseValue(string &entries, int &i);
+    Entry parseEntry(string &entries, int &charIndex);
+};
+
+
+#endif //RAFT_PROTOCOL_FOLLOWER_H

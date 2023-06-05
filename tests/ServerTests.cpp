@@ -419,3 +419,45 @@ TEST(ServerTest, ServerRespondsFalseForAppendEntriesWithConflictingTermsAtPrevLo
 
     waitForAllProcesses(pids);
 }
+
+
+TEST(ServerTest, serverSuccesfullyProcessesMultipleEntriesInAppendEntriesMessage){
+    //create addresses
+    int serverPort = 1090;
+    int probePort = 1091;
+    vector<sockaddr_in> serverAddrs;
+    serverAddrs.push_back(createAddr(serverPort));
+    serverAddrs.push_back(createAddr(probePort));
+
+    //srart server
+    vector<pid_t> pids;
+    pid_t serverPID = startServer(serverPort, serverAddrs);
+    pids.push_back(serverPID);
+    sleep(0.5);
+
+
+    pid_t probeServerPID = fork();
+    if (probeServerPID == 0) {
+        RaftMessage response = startProbeServerAndReceiveOneResponse(probePort);
+        assertCorrectAppendEntriesResponse(createRaftMessage(2, true, getServerID(serverAddrs, serverPort), 0,0,0,0,0,0,0,""), response);
+        exit(0);
+    }
+
+    pids.push_back(probeServerPID);
+    RaftMessage appendEntries = createRaftMessage(1, true, getServerID(serverAddrs, probePort), 0, 0, 0, 0, 0, 0, 11, "1 A\n\r12 A\n\r");
+    RaftMessage shutdown = getShutDownMessage();
+
+    //send appendentries
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, appendEntries);
+    close(probeSendSocket);
+
+    //send shutdown messages
+    probeSendSocket = createNewSocket();
+    connectToServer(serverAddrs[0], probeSendSocket);
+    sendRaftMessage(probeSendSocket, shutdown);
+    close(probeSendSocket);
+
+    waitForAllProcesses(pids);
+}
